@@ -26,7 +26,11 @@ public class OverlayService extends Service {
         super.onCreate();wm=(WindowManager)getSystemService(WINDOW_SERVICE);panel=build();
         lp=new WindowManager.LayoutParams(dp(BUBBLE),dp(BUBBLE),WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,PixelFormat.TRANSLUCENT);
         lp.gravity=Gravity.TOP|Gravity.END;lp.x=dp(12);lp.y=dp(150);wm.addView(panel,lp);
-        panel.setOnTouchListener(new WindowTouch());registerReceiver(rx,new IntentFilter(ScreenCaptureService.ACTION_ANALYSIS),RECEIVER_NOT_EXPORTED);clock.post(clockTick);
+        panel.setOnTouchListener(new WindowTouch());
+        IntentFilter filter=new IntentFilter(ScreenCaptureService.ACTION_ANALYSIS);
+        if(Build.VERSION.SDK_INT>=33) registerReceiver(rx,filter,RECEIVER_NOT_EXPORTED);
+        else registerReceiver(rx,filter);
+        clock.post(clockTick);
     }
     FrameLayout build(){FrameLayout root=new FrameLayout(this);bubble=new SignalBubble(this);root.addView(bubble,new FrameLayout.LayoutParams(dp(BUBBLE),dp(BUBBLE)));return root;}
 
