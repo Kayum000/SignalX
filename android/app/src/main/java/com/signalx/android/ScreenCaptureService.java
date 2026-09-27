@@ -66,13 +66,29 @@ public class ScreenCaptureService extends Service {
         int w=dm.widthPixels,h=dm.heightPixels;
 
         reader=ImageReader.newInstance(w,h,PixelFormat.RGBA_8888,2);
+        // Register the ImageReader callback BEFORE creating the virtual display.
+        // Some Android devices can deliver the first frame immediately after the
+        // display is created; registering afterwards can miss that callback.
+        reader.setOnImageAvailableListener(r->analyze(r),handler);
+
         projection.createVirtualDisplay(
             "SignalX",
             w,h,dm.densityDpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             reader.getSurface(),null,handler
         );
-        reader.setOnImageAvailableListener(r->analyze(r),handler);
+
+        // Send a second ready event after the virtual display is actually created.
+        handler.postDelayed(() -> {
+            Intent active=new Intent(ACTION_ANALYSIS);
+            active.setPackage(getPackageName());
+            active.putExtra("captureActive",true);
+            active.putExtra("signal","WAIT");
+            active.putExtra("score",0);
+            active.putExtra("reason","Capture চালু আছে; Quotex chart frame নেওয়া হচ্ছে…");
+            active.putExtra("candles",0);
+            sendBroadcast(active);
+        }, 300);
         Intent ready=new Intent(ACTION_ANALYSIS); ready.setPackage(getPackageName()); ready.putExtra("captureActive",true); ready.putExtra("signal","WAIT"); ready.putExtra("score",0); ready.putExtra("reason","চার্ট capture চালু হয়েছে; ক্যান্ডেল শনাক্ত করা হচ্ছে…"); ready.putExtra("candles",0); sendBroadcast(ready);
         return START_STICKY;
     }
