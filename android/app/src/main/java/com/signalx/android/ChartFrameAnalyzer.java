@@ -7,6 +7,11 @@ final class Candle {
     double o,h,l,c;
     Candle(double o,double h,double l,double c){this.o=o;this.h=h;this.l=l;this.c=c;}
 }
+final class DetectedCandle {
+    Candle candle; float centerX;
+    DetectedCandle(Candle candle,float centerX){this.candle=candle;this.centerX=centerX;}
+}
+
 final class Analysis {
     String signal,reason,strategy,regime;
     int score;
@@ -26,7 +31,7 @@ public final class ChartFrameAnalyzer {
         return mx>70 && r>g*1.18 && r>b*1.04 && mx-mn>28;
     }
 
-    static ArrayList<Candle> extract(ByteBuffer p,int w,int h,int stride,int pix){
+    static ArrayList<DetectedCandle> extractDetected(ByteBuffer p,int w,int h,int stride,int pix){
         int y0=(int)(h*.20), y1=(int)(h*.72), x0=(int)(w*.02), x1=(int)(w*.98);
         ArrayList<Integer> xs=new ArrayList<>();
         for(int x=x0;x<x1;x+=2){
@@ -48,7 +53,7 @@ public final class ChartFrameAnalyzer {
             }
             groups.add(new int[]{s,last});
         }
-        ArrayList<Candle> out=new ArrayList<>();
+        ArrayList<DetectedCandle> out=new ArrayList<>();
         for(int[] z:groups){
             if(z[1]-z[0]<2||z[1]-z[0]>34)continue;
             int min=y1,max=y0,gn=0,rn=0;
@@ -66,9 +71,15 @@ public final class ChartFrameAnalyzer {
             boolean up=gn>=rn;
             double o=up?mid-body/2:mid+body/2;
             double c=up?mid+body/2:mid-body/2;
-            out.add(new Candle(o,high,low,c));
+            out.add(new DetectedCandle(new Candle(o,high,low,c),(z[0]+z[1])/2f));
         }
         while(out.size()>80)out.remove(0);
+        return out;
+    }
+
+    static ArrayList<Candle> extract(ByteBuffer p,int w,int h,int stride,int pix){
+        ArrayList<Candle> out=new ArrayList<>();
+        for(DetectedCandle d:extractDetected(p,w,h,stride,pix)) out.add(d.candle);
         return out;
     }
 
