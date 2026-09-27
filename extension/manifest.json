@@ -1,15 +1,21 @@
 {
   "manifest_version": 3,
   "name": "SignalX Quotex Chart Bridge",
-  "version": "0.2.0",
-  "description": "SignalX browser bridge. Reads validated candle messages from the current Quotex chart; no external market-data API.",
-  "permissions": ["scripting","activeTab","storage"],
+  "version": "0.3.0",
+  "description": "SignalX floating chart overlay. Reads validated candle data from the current Quotex chart; no external market-data API.",
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "storage"
+  ],
   "host_permissions": [
     "https://*.quotex.io/*",
     "https://*.quotex.com/*",
     "https://*.qxbroker.com/*"
   ],
-  "action": {"default_title":"SignalX"},
+  "action": {
+    "default_title": "SignalX"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -17,7 +23,14 @@
         "https://*.quotex.com/*",
         "https://*.qxbroker.com/*"
       ],
-      "js": ["adapter.js"],
+      "js": [
+        "signal-engine.js",
+        "adapter.js",
+        "overlay.js"
+      ],
+      "css": [
+        "overlay.css"
+      ],
       "run_at": "document_start"
     },
     {
@@ -26,7 +39,9 @@
         "https://*.quotex.com/*",
         "https://*.qxbroker.com/*"
       ],
-      "js": ["page-bridge.js"],
+      "js": [
+        "page-bridge.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     }
