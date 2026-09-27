@@ -78,11 +78,16 @@ public class ScreenCaptureService extends Service {
         if(projection==null){stopSelf();return START_NOT_STICKY;}
         android.util.DisplayMetrics dm=getResources().getDisplayMetrics();
         int w=dm.widthPixels,h=dm.heightPixels;
-        reader=ImageReader.newInstance(w,h,PixelFormat.RGBA_8888,2);
+        reader=ImageReader.newInstance(w,h,PixelFormat.RGBA_8888,3);
         reader.setOnImageAvailableListener(r->analyze(r),handler);
+        projection.registerCallback(new MediaProjection.Callback(){
+            @Override public void onStop(){
+                sendStatus("Screen capture বন্ধ হয়েছে; আবার Capture চালু করুন।",0,candleHistory.size(),"UNKNOWN","NONE");
+            }
+        },handler);
         projection.createVirtualDisplay("SignalX",w,h,dm.densityDpi,DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,reader.getSurface(),null,handler);
-        sendStatus("চার্ট capture চালু হয়েছে; MMC Strategy candle history সংগ্রহ করা হচ্ছে…",0,0,"UNKNOWN","NONE");
-        handler.postDelayed(()->sendStatus("Capture চালু আছে; MMC Adaptive Strategy চলছে…",0,0,"UNKNOWN","NONE"),300);
+        sendStatus("Capture চালু হয়েছে; frame ও candle detector পরীক্ষা করা হচ্ছে…",0,0,"UNKNOWN","NONE");
+        handler.postDelayed(()->sendStatus("Capture চালু আছে; MMC Adaptive Strategy চলছে…",0,candleHistory.size(),"UNKNOWN","NONE"),500);
         return START_STICKY;
     }
 
@@ -97,16 +102,41 @@ public class ScreenCaptureService extends Service {
         Image img=null;
         try{
             img=r.acquireLatestImage();if(img==null)return;
-            Image.Plane p=img.getPlanes()[0];ByteBuffer b=p.getBuffer();
-            ArrayList<DetectedCandle> detected=ChartFrameAnalyzer.extractDetected(b,img.getWidth(),img.getHeight(),p.getRowStride(),p.getPixelStride());
+            Image.Plane p=img.getPlanes()[0];
+            ByteBuffer b=p.getBuffer();
+            int w=img.getWidth(), h=img.getHeight(), stride=p.getRowStride(), pix=p.getPixelStride();
+
+            ArrayList<DetectedCandle> detected=ChartFrameAnalyzer.extractDetected(b,w,h,stride,pix);
             updateHistory(detected);
             ArrayList<Candle> cs=new ArrayList<>(candleHistory);
             Analysis a=ChartFrameAnalyzer.signal(cs);
+
+            if(detected.isEmpty()){
+                int[] stats=sampleColorStats(b,w,h,stride,pix);
+                a.reason="CAPTURE "+w+"x"+h+" stride="+stride+" pix="+pix+" RGB-like="+stats[0]+" maxSat="+stats[1]+" | no candles";
+            }
+
             Intent o=new Intent(ACTION_ANALYSIS);o.setPackage(getPackageName());
             o.putExtra("score",a.score);o.putExtra("signal",a.signal);o.putExtra("reason",a.reason);
             o.putExtra("candles",cs.size());o.putExtra("captureActive",true);o.putExtra("regime",a.regime);o.putExtra("strategy",a.strategy);
             sendBroadcast(o);
         }finally{if(img!=null)img.close();}
+    }
+
+    int[] sampleColorStats(ByteBuffer src,int w,int h,int stride,int pix){
+        int colorful=0, saturated=0;
+        int y0=(int)(h*.05), y1=(int)(h*.95), x0=0, x1=w;
+        for(int y=y0;y<y1;y+=8){
+            for(int x=x0;x<x1;x+=8){
+                int i=y*stride+x*pix;
+                if(i<0||i+2>=src.limit())continue;
+                int r=src.get(i)&255,g=src.get(i+1)&255,b=src.get(i+2)&255;
+                int mx=Math.max(r,Math.max(g,b)),mn=Math.min(r,Math.min(g,b));
+                if(mx>45)colorful++;
+                if(mx-mn>35 && mx>60)saturated++;
+            }
+        }
+        return new int[]{colorful,saturated};
     }
 
     public void onDestroy(){if(reader!=null)reader.close();if(projection!=null)projection.stop();super.onDestroy();}
