@@ -73,6 +73,7 @@ public class ScreenCaptureService extends Service {
             reader.getSurface(),null,handler
         );
         reader.setOnImageAvailableListener(r->analyze(r),handler);
+        Intent ready=new Intent(ACTION_ANALYSIS); ready.setPackage(getPackageName()); ready.putExtra("captureActive",true); ready.putExtra("signal","WAIT"); ready.putExtra("score",0); ready.putExtra("reason","চার্ট capture চালু হয়েছে; ক্যান্ডেল শনাক্ত করা হচ্ছে…"); ready.putExtra("candles",0); sendBroadcast(ready);
         return START_STICKY;
     }
 
@@ -95,6 +96,7 @@ public class ScreenCaptureService extends Service {
             o.putExtra("signal",a.signal);
             o.putExtra("reason",a.reason);
             o.putExtra("candles",cs.size());
+            o.putExtra("captureActive",true);
             sendBroadcast(o);
         }finally{
             if(img!=null)img.close();
