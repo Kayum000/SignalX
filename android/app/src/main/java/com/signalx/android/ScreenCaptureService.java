@@ -31,7 +31,7 @@ public class ScreenCaptureService extends Service {
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .build();
 
-        startForeground(7,n,ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+        startForeground(7,n,android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
     }
 
     @Override public int onStartCommand(Intent in,int flags,int id){
