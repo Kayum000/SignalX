@@ -13,6 +13,45 @@ import java.util.*;
 public class ScreenCaptureService extends Service {
     public static final String EXTRA_RESULT_CODE="resultCode", EXTRA_DATA="data", ACTION_ANALYSIS="com.signalx.android.ANALYSIS";
     MediaProjection projection; ImageReader reader; Handler handler;
+    final ArrayList<Candle> candleHistory=new ArrayList<>();
+    ArrayList<DetectedCandle> previousFrame=new ArrayList<>();
+    long lastHistoryUpdate=0;
+
+    void updateHistory(ArrayList<DetectedCandle> now){
+        if(now.isEmpty()) return;
+        if(previousFrame.isEmpty()){
+            for(DetectedCandle d:now) candleHistory.add(d.candle);
+        }else{
+            float oldSpacing=medianSpacing(previousFrame), newSpacing=medianSpacing(now);
+            float shift=previousFrame.get(previousFrame.size()-1).centerX-now.get(now.size()-1).centerX;
+            boolean sequenceShifted=previousFrame.size()>=3 && now.size()>=3
+                && shift>Math.max(4f,Math.min(oldSpacing,newSpacing)*0.45f)
+                && Math.abs(shift-Math.max(oldSpacing,newSpacing))<Math.max(8f,Math.max(oldSpacing,newSpacing)*0.55f);
+            boolean countGrew=now.size()>previousFrame.size();
+            if(sequenceShifted||countGrew){
+                Candle closed=previousFrame.get(previousFrame.size()-1).candle;
+                if(!duplicate(closed)) candleHistory.add(closed);
+            }
+        }
+        while(candleHistory.size()>120)candleHistory.remove(0);
+        previousFrame=now;
+        lastHistoryUpdate=System.currentTimeMillis();
+    }
+
+    float medianSpacing(ArrayList<DetectedCandle> x){
+        if(x.size()<2)return 20f;
+        ArrayList<Float> d=new ArrayList<>();
+        for(int i=1;i<x.size();i++)d.add(x.get(i).centerX-x.get(i-1).centerX);
+        Collections.sort(d); return d.get(d.size()/2);
+    }
+
+    boolean duplicate(Candle x){
+        if(candleHistory.isEmpty())return false;
+        Candle y=candleHistory.get(candleHistory.size()-1);
+        double scale=Math.max(1.0,Math.max(Math.abs(y.h),Math.abs(y.l)));
+        return Math.abs(x.h-y.h)/scale<0.01 && Math.abs(x.l-y.l)/scale<0.01
+            && Math.abs(x.c-y.c)/scale<0.01;
+    }
 
     @Override public void onCreate(){
         super.onCreate(); handler=new Handler(Looper.getMainLooper());
@@ -59,7 +98,9 @@ public class ScreenCaptureService extends Service {
         try{
             img=r.acquireLatestImage();if(img==null)return;
             Image.Plane p=img.getPlanes()[0];ByteBuffer b=p.getBuffer();
-            ArrayList<Candle> cs=ChartFrameAnalyzer.extract(b,img.getWidth(),img.getHeight(),p.getRowStride(),p.getPixelStride());
+            ArrayList<DetectedCandle> detected=ChartFrameAnalyzer.extractDetected(b,img.getWidth(),img.getHeight(),p.getRowStride(),p.getPixelStride());
+            updateHistory(detected);
+            ArrayList<Candle> cs=new ArrayList<>(candleHistory);
             Analysis a=ChartFrameAnalyzer.signal(cs);
             Intent o=new Intent(ACTION_ANALYSIS);o.setPackage(getPackageName());
             o.putExtra("score",a.score);o.putExtra("signal",a.signal);o.putExtra("reason",a.reason);
