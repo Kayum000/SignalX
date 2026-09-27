@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <title>SignalX — Quotex Chart Signal</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand"><div class="logo-mark">SX</div><div><h1>SignalX</h1><p>Quotex Chart Signal Assistant</p></div></div>
+      <div class="status"><span id="dot"></span><span id="statusText">চার্ট ডাটা অপেক্ষায়</span></div>
+    </header>
+
+    <section class="market-card">
+      <div><span class="eyebrow">বর্তমান মার্কেট</span><strong id="market">—</strong><span id="tf">Timeframe —</span></div>
+      <button id="signalBtn" class="primary">GET SIGNAL</button>
+    </section>
+
+    <section class="signal-grid">
+      <article class="signal-card" id="signalCard"><span class="eyebrow">সিগনাল</span><div id="signal">WAIT</div><p id="signalSub">চার্ট ডাটা পাওয়া গেলে বিশ্লেষণ হবে</p></article>
+      <article class="score-card"><span class="eyebrow">Signal Score</span><div><b id="score">0</b><span>/100</span></div><div class="meter"><i id="meter"></i></div><p id="confidence">অপেক্ষমান</p></article>
+    </section>
+
+    <section class="details">
+      <div class="panel"><h2>বিশ্লেষণ</h2><div class="rows">
+        <div><span>Trend</span><b id="trend">—</b></div>
+        <div><span>Momentum</span><b id="momentum">—</b></div>
+        <div><span>Structure</span><b id="structure">—</b></div>
+        <div><span>RSI</span><b id="rsi">—</b></div>
+      </div></div>
+      <div class="panel"><h2>কারণ</h2><p id="reason" class="reason">Get Signal চাপলে বর্তমান চার্টের ডাটা বিশ্লেষণ করা হবে।</p><div id="checks" class="checks"></div></div>
+    </section>
+
+    <section class="panel candles"><div class="panel-head"><h2>শেষ ক্যান্ডেল</h2><span id="candleCount">0</span></div><div id="candles" class="candle-list"></div></section>
+    <footer>SignalX • Current chart only • কোনো বাহ্যিক মার্কেট-ডাটা API ব্যবহার করা হয় না</footer>
+  </main>
+  <script src="signal-engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
