@@ -164,7 +164,7 @@ public final class ChartFrameAnalyzer {
             double d=c.get(i).c-c.get(i-1).c;
             if(d>0)gain+=d;else loss-=d;
         }
-        if(loss==0)return 100;
+        if(loss==0)return Double.NaN;
         return 100-(100/(1+(gain/loss)));
     }
 
