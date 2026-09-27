@@ -21,7 +21,11 @@ public class ScreenCaptureService extends Service {
         Notification n=new Notification.Builder(this,"signalx_capture")
             .setContentTitle("SignalX চলছে").setContentText("Quotex chart analysis active")
             .setSmallIcon(android.R.drawable.ic_menu_view).build();
-        startForeground(7,n,android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+        if(Build.VERSION.SDK_INT>=29){
+            startForeground(7,n,android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+        }else{
+            startForeground(7,n);
+        }
     }
 
     @Override public int onStartCommand(Intent in,int flags,int id){
