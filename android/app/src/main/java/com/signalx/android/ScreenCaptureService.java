@@ -20,11 +20,11 @@ public class ScreenCaptureService extends Service {
     String lockedSignal="WAIT";
     String pendingSignal="WAIT";
     int pendingFrames=0;
-    int signalCandleCount=-1;
+    long candleSequence=0;
+    long signalCandleSequence=-1;
 
     void updateHistory(ArrayList<DetectedCandle> now){
         if(now.isEmpty()) return;
-        int before=candleHistory.size();
         if(previousFrame.isEmpty()){
             for(DetectedCandle d:now)candleHistory.add(d.candle);
         }else{
@@ -33,33 +33,33 @@ public class ScreenCaptureService extends Service {
             boolean sequenceShifted=previousFrame.size()>=3 && now.size()>=3
                 && shift>Math.max(4f,Math.min(oldSpacing,newSpacing)*0.45f)
                 && Math.abs(shift-Math.max(oldSpacing,newSpacing))<Math.max(8f,Math.max(oldSpacing,newSpacing)*0.55f);
-            boolean countGrew=now.size()>previousFrame.size();
-            if(sequenceShifted||countGrew){
+            if(sequenceShifted){
                 Candle closed=previousFrame.get(previousFrame.size()-1).candle;
-                if(!duplicate(closed))candleHistory.add(closed);
+                if(!duplicate(closed)){
+                    candleHistory.add(closed);
+                    candleSequence++;
+                    lockedSignal="WAIT";
+                    pendingSignal="WAIT";
+                    pendingFrames=0;
+                    signalCandleSequence=-1;
+                }
             }
         }
         while(candleHistory.size()>120)candleHistory.remove(0);
-        if(candleHistory.size()>before){
-            lockedSignal="WAIT";
-            pendingSignal="WAIT";
-            pendingFrames=0;
-            signalCandleCount=-1;
-        }
         previousFrame=now;
         lastHistoryUpdate=System.currentTimeMillis();
     }
 
     String stabilizeSignal(String raw){
         if(!"CALL".equals(raw)&&!"PUT".equals(raw)) return lockedSignal;
-        if(signalCandleCount==candleHistory.size() && ("CALL".equals(lockedSignal)||"PUT".equals(lockedSignal))){
+        if(signalCandleSequence==candleSequence && ("CALL".equals(lockedSignal)||"PUT".equals(lockedSignal))){
             return lockedSignal;
         }
         if(raw.equals(pendingSignal)) pendingFrames++;
         else {pendingSignal=raw;pendingFrames=1;}
         if(pendingFrames>=3){
             lockedSignal=raw;
-            signalCandleCount=candleHistory.size();
+            signalCandleSequence=candleSequence;
             pendingFrames=0;
         }
         return lockedSignal;
