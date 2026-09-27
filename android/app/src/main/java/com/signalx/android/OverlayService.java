@@ -14,6 +14,7 @@ public class OverlayService extends Service {
     WindowManager wm; FrameLayout panel; LinearLayout card; SignalBubble bubble; WindowManager.LayoutParams lp;
     Handler clock=new Handler(Looper.getMainLooper()); boolean expanded=false;
     String signal="WAIT",reason="চার্ট capture অপেক্ষায়…",strategy="NONE",regime="UNKNOWN";
+    String signalTime="--:--:--";
     int score=0,candles=0;
     final int BUBBLE=78,EXPANDED_W=300,EXPANDED_H=300;
 
@@ -53,14 +54,17 @@ public class OverlayService extends Service {
         TextView close=t("×",24,Color.LTGRAY);close.setOnClickListener(v->setExpanded(false));head.addView(close,new LinearLayout.LayoutParams(dp(30),dp(30)));card.addView(head);
 
         TextView meta=t("QUOTEX CHART  •  MMC LIVE SCREEN ANALYSIS",9,Color.rgb(135,151,174));meta.setGravity(Gravity.CENTER);card.addView(meta,new LinearLayout.LayoutParams(-1,dp(22)));
-        TextView sig=t(signalText(signal),25,signalColor(signal));sig.setGravity(Gravity.CENTER);sig.setTypeface(null,Typeface.BOLD);card.addView(sig,new LinearLayout.LayoutParams(-1,dp(44)));
-        TextView ai=t("AI "+score,12,Color.WHITE);ai.setGravity(Gravity.CENTER);card.addView(ai,new LinearLayout.LayoutParams(-1,dp(22)));
+        TextView sig=t(signalText(signal),25,signalColor(signal));sig.setGravity(Gravity.CENTER);sig.setTypeface(null,Typeface.BOLD);card.addView(sig,new LinearLayout.LayoutParams(-1,dp(40)));
+
+        TextView sigTime=t("SIGNAL TIME: "+signalTime,11,Color.rgb(245,205,90));sigTime.setGravity(Gravity.CENTER);sigTime.setTypeface(null,Typeface.BOLD);card.addView(sigTime,new LinearLayout.LayoutParams(-1,dp(24)));
+
+        TextView ai=t("AI "+score,12,Color.WHITE);ai.setGravity(Gravity.CENTER);card.addView(ai,new LinearLayout.LayoutParams(-1,dp(20)));
 
         TextView strat=t("STRATEGY: "+strategyLabel(strategy),10,Color.rgb(75,180,255));strat.setGravity(Gravity.CENTER);strat.setTypeface(null,Typeface.BOLD);card.addView(strat,new LinearLayout.LayoutParams(-1,dp(22)));
         TextView reg=t("REGIME: "+regime,9,Color.rgb(155,174,198));reg.setGravity(Gravity.CENTER);card.addView(reg,new LinearLayout.LayoutParams(-1,dp(20)));
 
-        TextView why=t(reason,10,Color.rgb(198,210,226));why.setGravity(Gravity.CENTER);why.setMaxLines(3);card.addView(why,new LinearLayout.LayoutParams(-1,dp(48)));
-        TextView st=t(candles+" candles detected  •  MMC requires 60",9,Color.rgb(125,143,166));st.setGravity(Gravity.CENTER);card.addView(st,new LinearLayout.LayoutParams(-1,dp(22)));
+        TextView why=t(reason,10,Color.rgb(198,210,226));why.setGravity(Gravity.CENTER);why.setMaxLines(3);card.addView(why,new LinearLayout.LayoutParams(-1,dp(44)));
+        TextView st=t(candles+" candles detected  •  MMC requires 60",9,Color.rgb(125,143,166));st.setGravity(Gravity.CENTER);card.addView(st,new LinearLayout.LayoutParams(-1,dp(20)));
 
         Button b=new Button(this);b.setText("GET SIGNAL");b.setTextColor(Color.WHITE);b.setTextSize(11);b.setAllCaps(false);
         GradientDrawable bb=new GradientDrawable();bb.setColor(Color.rgb(43,111,255));bb.setCornerRadius(dp(10));b.setBackground(bb);b.setOnClickListener(v->refreshExpanded());
@@ -93,7 +97,11 @@ public class OverlayService extends Service {
 
     final BroadcastReceiver rx=new BroadcastReceiver(){
         public void onReceive(Context c,Intent i){
-            signal=i.getStringExtra("signal");if(signal==null)signal="WAIT";
+            String incoming=i.getStringExtra("signal");if(incoming==null)incoming="WAIT";
+            if(!incoming.equals(signal) && ("CALL".equals(incoming)||"PUT".equals(incoming))){
+                signalTime=new SimpleDateFormat("HH:mm:ss",Locale.getDefault()).format(new Date());
+            }
+            signal=incoming;
             score=Math.max(0,Math.min(100,i.getIntExtra("score",0)));
             reason=i.getStringExtra("reason");if(reason==null)reason="—";
             candles=i.getIntExtra("candles",0);strategy=i.getStringExtra("strategy");if(strategy==null)strategy="NONE";
