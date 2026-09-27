@@ -23,57 +23,70 @@ final class Analysis {
 /** Screen-data implementation of the MMC adaptive_real strategy. */
 public final class ChartFrameAnalyzer {
     static boolean green(int r,int g,int b){
-        int mx=Math.max(r,Math.max(g,b)),mn=Math.min(r,Math.min(g,b));
-        return mx>70 && g>r*1.18 && g>b*1.04 && mx-mn>28;
+        int mx=Math.max(r,Math.max(g,b)), mn=Math.min(r,Math.min(g,b));
+        if(mx<45 || mx-mn<22) return false;
+        float sat=(mx-mn)/(float)Math.max(mx,1);
+        return g>=r*1.08f && g>=b*1.04f && sat>=0.16f;
     }
     static boolean red(int r,int g,int b){
-        int mx=Math.max(r,Math.max(g,b)),mn=Math.min(r,Math.min(g,b));
-        return mx>70 && r>g*1.18 && r>b*1.04 && mx-mn>28;
+        int mx=Math.max(r,Math.max(g,b)), mn=Math.min(r,Math.min(g,b));
+        if(mx<45 || mx-mn<22) return false;
+        float sat=(mx-mn)/(float)Math.max(mx,1);
+        return r>=g*1.08f && r>=b*1.04f && sat>=0.16f;
     }
 
     static ArrayList<DetectedCandle> extractDetected(ByteBuffer p,int w,int h,int stride,int pix){
-        int y0=(int)(h*.20), y1=(int)(h*.72), x0=(int)(w*.02), x1=(int)(w*.98);
+        // Quotex charts can use anti-aliased/dim candle colors. Scan a wider
+        // chart band and use saturation/relative-channel detection instead of
+        // requiring one exact RGB shade.
+        int y0=(int)(h*.12), y1=(int)(h*.82), x0=(int)(w*.01), x1=(int)(w*.99);
         ArrayList<Integer> xs=new ArrayList<>();
         for(int x=x0;x<x1;x+=2){
             int n=0;
-            for(int y=y0;y<y1;y+=3){
+            for(int y=y0;y<y1;y+=2){
                 int i=y*stride+x*pix;
                 if(i<0||i+2>=p.limit()) continue;
                 int r=p.get(i)&255,g=p.get(i+1)&255,b=p.get(i+2)&255;
                 if(green(r,g,b)||red(r,g,b)) n++;
             }
-            if(n>=3) xs.add(x);
+            if(n>=2) xs.add(x);
         }
+
         ArrayList<int[]> groups=new ArrayList<>();
         if(!xs.isEmpty()){
             int s=xs.get(0),last=s;
             for(int x:xs){
-                if(x-last>3){groups.add(new int[]{s,last});s=x;}
+                if(x-last>5){groups.add(new int[]{s,last});s=x;}
                 last=x;
             }
             groups.add(new int[]{s,last});
         }
+
         ArrayList<DetectedCandle> out=new ArrayList<>();
         for(int[] z:groups){
-            if(z[1]-z[0]<2||z[1]-z[0]>34)continue;
+            if(z[1]-z[0]<2||z[1]-z[0]>48) continue;
             int min=y1,max=y0,gn=0,rn=0;
-            for(int x=z[0];x<=z[1];x++) for(int y=y0;y<y1;y+=2){
-                int i=y*stride+x*pix;
-                if(i<0||i+2>=p.limit())continue;
-                int r=p.get(i)&255,g=p.get(i+1)&255,b=p.get(i+2)&255;
-                if(green(r,g,b)){gn++;min=Math.min(min,y);max=Math.max(max,y);}
-                else if(red(r,g,b)){rn++;min=Math.min(min,y);max=Math.max(max,y);}
+            for(int x=z[0];x<=z[1];x++){
+                for(int y=y0;y<y1;y+=2){
+                    int i=y*stride+x*pix;
+                    if(i<0||i+2>=p.limit()) continue;
+                    int r=p.get(i)&255,g=p.get(i+1)&255,b=p.get(i+2)&255;
+                    if(green(r,g,b)){gn++;min=Math.min(min,y);max=Math.max(max,y);}
+                    else if(red(r,g,b)){rn++;min=Math.min(min,y);max=Math.max(max,y);}
+                }
             }
             int total=gn+rn;
-            if(max-min<4||total<8)continue;
-            double high=h-max,low=h-min,mid=(high+low)/2.0;
+            if(max-min<5||total<6) continue;
+
+            double high=h-max, low=h-min, mid=(high+low)/2.0;
             double body=Math.max(2,(max-min)*.55);
             boolean up=gn>=rn;
             double o=up?mid-body/2:mid+body/2;
-            double c=up?mid+body/2:mid-body/2;
-            out.add(new DetectedCandle(new Candle(o,high,low,c),(z[0]+z[1])/2f));
+            double close=up?mid+body/2:mid-body/2;
+            out.add(new DetectedCandle(
+                new Candle(o,high,low,close),(z[0]+z[1])/2f));
         }
-        while(out.size()>80)out.remove(0);
+        while(out.size()>80) out.remove(0);
         return out;
     }
 
