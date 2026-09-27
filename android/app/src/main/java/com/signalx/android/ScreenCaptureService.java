@@ -22,11 +22,16 @@ public class ScreenCaptureService extends Service {
     int pendingFrames=0;
     long candleSequence=0;
     long signalCandleSequence=-1;
+    boolean candleReady=false;
 
     void updateHistory(ArrayList<DetectedCandle> now){
         if(now.isEmpty()) return;
         if(previousFrame.isEmpty()){
-            for(DetectedCandle d:now)candleHistory.add(d.candle);
+            // Bootstrap only the stable historical candles. Keep the rightmost
+            // detected candle as the live/open candle; it must not drive a signal.
+            int limit=Math.max(0,now.size()-1);
+            for(int i=0;i<limit;i++)candleHistory.add(now.get(i).candle);
+            candleReady=true;
         }else{
             float oldSpacing=medianSpacing(previousFrame), newSpacing=medianSpacing(now);
             float shift=previousFrame.get(previousFrame.size()-1).centerX-now.get(now.size()-1).centerX;
@@ -42,6 +47,7 @@ public class ScreenCaptureService extends Service {
                     pendingSignal="WAIT";
                     pendingFrames=0;
                     signalCandleSequence=-1;
+                    candleReady=true;
                 }
             }
         }
@@ -51,6 +57,7 @@ public class ScreenCaptureService extends Service {
     }
 
     String stabilizeSignal(String raw){
+        if(!candleReady) return "WAIT";
         if(!"CALL".equals(raw)&&!"PUT".equals(raw)) return lockedSignal;
         if(signalCandleSequence==candleSequence && ("CALL".equals(lockedSignal)||"PUT".equals(lockedSignal))){
             return lockedSignal;
